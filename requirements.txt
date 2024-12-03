@@ -10,3 +10,4 @@ shap
 ydata-profiling
 streamlit
 joblib
+requests
