@@ -2,9 +2,9 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import lightgbm as lgb
-import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error
+import plotly.graph_objects as go
 
 # Generate synthetic data
 def generate_data(n_rows=10000):
@@ -68,33 +68,47 @@ with tabs[1]:
     # Make predictions
     y_pred = model.predict(X_test)
 
-    # Prepare data for bar chart
+    # Prepare data for the chart
     exposure_summary = df.groupby("Exposure_EscapeOfWater").agg(
         Actual=('CalculatedResult_NetPremiumDiffFromPredictedMarketPremiumAmt_bnd', 'mean'),
         Expected=('CalculatedResult_NetPremiumDiffFromPredictedMarketPremiumAmt_bnd', 'mean')  # Placeholder for expected values
     ).reset_index()
 
-    # Plotting bar chart for Exposure
-    fig, ax1 = plt.subplots(figsize=(12, 6))
+    # Plotly chart
+    fig = go.Figure()
 
-    # Bar chart for Actual values
-    bars = ax1.bar(exposure_summary["Exposure_EscapeOfWater"], exposure_summary["Actual"], color='skyblue', label='Actual')
-    ax1.set_xlabel('Exposure (Number of Quotes for Escape of Water)')
-    ax1.set_ylabel('Actual', color='blue')
-    ax1.tick_params(axis='y', labelcolor='blue')
+    # Adding bars for Actual values in green
+    fig.add_trace(go.Bar(
+        x=exposure_summary["Exposure_EscapeOfWater"],
+        y=exposure_summary["Actual"],
+        name='Actual',
+        marker_color='green',
+        width=0.4  # Wider bars
+    ))
 
-    # Creating a second y-axis for Expected values
-    ax2 = ax1.twinx()
-    ax2.plot(exposure_summary["Exposure_EscapeOfWater"], exposure_summary["Expected"], color='red', marker='o', label='Expected')
-    ax2.set_ylabel('Expected', color='red')
-    ax2.tick_params(axis='y', labelcolor='red')
+    # Adding line for Expected values in red
+    fig.add_trace(go.Scatter(
+        x=exposure_summary["Exposure_EscapeOfWater"],
+        y=exposure_summary["Expected"],
+        name='Expected',
+        mode='lines+markers',
+        line=dict(color='red'),
+        marker=dict(size=10)
+    ))
 
-    # Adding Legends
-    ax1.legend(loc='upper left')
-    ax2.legend(loc='upper right')
+    # Update layout
+    fig.update_layout(
+        title='Actual vs Expected by Exposure',
+        xaxis_title='Exposure (Number of Quotes for Escape of Water)',
+        yaxis_title='Values',
+        legend_title='Legend',
+        width=1000,  # Wider chart
+        height=600,  # Adjust height if needed
+        template='plotly_white'
+    )
 
-    plt.title('Actual vs Expected by Exposure')
-    st.pyplot(fig)
+    # Display Plotly chart
+    st.plotly_chart(fig)
 
     # Display metrics
     mse = mean_squared_error(y_test, y_pred)
