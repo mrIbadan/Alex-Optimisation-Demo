@@ -1,5 +1,5 @@
 pandas
-numpy==1.21.0  # Use a stable version
+numpy
 lightgbm
 streamlit
 matplotlib
