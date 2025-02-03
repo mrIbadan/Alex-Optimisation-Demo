@@ -25,7 +25,8 @@ def generate_data(n_rows=10000):
 df = generate_data()
 
 # Streamlit app
-st.title("Insurance Home Claims Model")
+st.image("https://raw.githubusercontent.com/mrIbadan/Alex-Optimisation-Demo/main/Integra-Logo.jpg", width=150)  # Logo URL
+st.markdown("<h1 style='text-align: left;'>Insurance Home Claims Model</h1>", unsafe_allow_html=True)
 
 # Tab layout
 tabs = st.tabs(['Rate Change', 'Actual vs Expected'])
