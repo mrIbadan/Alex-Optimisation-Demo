@@ -1,191 +1,87 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import lightgbm as lgb
 import matplotlib.pyplot as plt
-import seaborn as sns
 from sklearn.model_selection import train_test_split
-from xgboost import XGBRegressor
-from lightgbm import LGBMRegressor
-from catboost import CatBoostRegressor
-from sklearn.linear_model import LinearRegression
-from sklearn.metrics import roc_curve, auc
-import joblib
-import shap  # For SHAP values
-from bayes_opt import BayesianOptimization  # For Bayesian Optimization
+from sklearn.metrics import mean_squared_error
 
 # Generate synthetic data
-def generate_data(rows=10000):
+def generate_data(n_rows=10000):
+    np.random.seed(42)
     data = {
-        'Escape_Of_Water': np.random.randint(1000, 5000, size=rows),
-        'ArSpecifiedItems_AmtReqd_bnd': np.random.randint(1000, 5000, size=rows),
-        'ArUnspecifiedItems_AmtReqd_bnd': np.random.randint(1000, 5000, size=rows),
-        'BuildingsCover_AccidentalDamageGrantedInd_bnd': np.random.choice([0, 1], size=rows),
-        'CalculatedResult_NetPremiumDiffFromPredictedMarketPremiumAmt_bnd': np.random.uniform(-1000, 1000, size=rows),
-        'Premises_NoBedrooms_bnd': np.random.randint(1, 6, size=rows),
-        'Region_bnd': np.random.choice(['North', 'South', 'East', 'West'], size=rows),
+        "ArSpecifiedItems_AmtReqd_bnd": np.random.randint(0, 10, n_rows),
+        "ArUnspecifiedItems_AmtReqd_bnd": np.random.randint(0, 10, n_rows),
+        "BuildingsCover_AccidentalDamageGrantedInd_bnd": np.random.randint(0, 2, n_rows),
+        "BuildingsCover_VolXsGranted_bnd": np.random.randint(0, 5, n_rows),
+        "CalculatedResult_NetPremiumDiffFromPredictedMarketPremiumAmt_bnd": np.random.uniform(-100, 100, n_rows),
+        "CalculatedResult_NetPremiumDiffFromPredictedMarketPremiumRel_bnd": np.random.uniform(-0.5, 0.5, n_rows),
+        "CalculatedResult_NetPremiumExclIpt_BO_bnd": np.random.uniform(100, 1000, n_rows),
+        "CalculatedResult_NetPremiumExclIpt_CO_bnd": np.random.uniform(100, 1000, n_rows),
+        "CalculatedResult_NetPremiumExclIpt_JC_bnd": np.random.uniform(100, 1000, n_rows),
+        "Occupation_v4": np.random.choice(["Professional", "Manual", "Retired", "Student"], n_rows),
+        "Region_bnd": np.random.choice(["North", "South", "East", "West"], n_rows),
+        "Renewal_PremiumChangeYoY_bnd": np.random.uniform(-0.2, 0.2, n_rows),
     }
     return pd.DataFrame(data)
 
-data = generate_data()
-
-# Preprocess categorical variables
-def preprocess_data(df):
-    return pd.get_dummies(df, drop_first=True)
-
-data = preprocess_data(data)
+# Load data
+df = generate_data()
 
 # Streamlit app
-st.title('Insurance Home Claims Model')
-
-# Function to display error messages
-def display_error(error_message):
-    st.error(f"Error: {error_message}")
+st.title("Insurance Home Claims Model")
 
 # Tabs for the application
-tabs = st.tabs(['Rate Change', 'Exposure Analysis', 'Statistical Reports', 'Model Benchmarking', 'ROC Curve', 'SHAP Values', 'Bayesian Optimization'])
+tabs = st.tabs(['Rate Change', 'Actual vs Expected'])
 
 # First Tab: Rate Change
 with tabs[0]:
     st.header('Rate Change Interface')
-    try:
-        selected_factor = st.selectbox('Select Factor to Change', data.columns)
-        change_type = st.radio('Change Type', ('Price', 'Percentage'))
-        change_value = st.number_input('Enter Change Value', value=0.0)
+    selected_factor = st.selectbox('Select Factor to Change', df.columns)
+    change_type = st.radio('Change Type', ('Price', 'Percentage'))
+    change_value = st.number_input('Enter Change Value', value=0.0)
 
-        if st.button('Apply Change'):
-            if change_type == 'Price':
-                data[selected_factor] += change_value
-            else:
-                data[selected_factor] *= (1 + change_value / 100)
-            st.success(f'Successfully changed {selected_factor} by {change_value} {change_type}')
-    except Exception as e:
-        display_error(e)
+    if st.button('Apply Change'):
+        if change_type == 'Price':
+            df[selected_factor] += change_value
+        else:
+            df[selected_factor] *= (1 + change_value / 100)
+        st.success(f'Successfully changed {selected_factor} by {change_value} {change_type}')
 
-# Second Tab: Exposure Analysis
+# Second Tab: Actual vs Expected
 with tabs[1]:
-    st.header('Exposure Analysis')
-    try:
-        exposure = data.groupby(['Premises_NoBedrooms_bnd']).size().reset_index(name='Count')
-        avg_premium = data.groupby(['Premises_NoBedrooms_bnd'])['CalculatedResult_NetPremiumDiffFromPredictedMarketPremiumAmt_bnd'].mean().reset_index(name='Average Premium')
+    st.header('Actual vs Expected Model')
 
-        merged_data = pd.merge(exposure, avg_premium, on='Premises_NoBedrooms_bnd')
+    # Prepare data for modeling
+    features = df.drop(columns=["CalculatedResult_NetPremiumDiffFromPredictedMarketPremiumAmt_bnd"])
+    target = df["CalculatedResult_NetPremiumDiffFromPredictedMarketPremiumAmt_bnd"]
 
-        fig, ax1 = plt.subplots()
-        ax2 = ax1.twinx()
+    # Split the data
+    X_train, X_test, y_train, y_test = train_test_split(features, target, test_size=0.2, random_state=42)
 
-        sns.barplot(x='Premises_NoBedrooms_bnd', y='Count', data=merged_data, ax=ax1, color='g', alpha=0.6)
-        sns.lineplot(x='Premises_NoBedrooms_bnd', y='Average Premium', data=merged_data, ax=ax2, color='b')
+    # Train a LightGBM model
+    model = lgb.LGBMRegressor()
+    model.fit(X_train, y_train)
 
-        ax1.set_xlabel('Number of Bedrooms')
-        ax1.set_ylabel('Count of Quotes', color='g')
-        ax2.set_ylabel('Average Premium', color='b')
+    # Make predictions
+    y_pred = model.predict(X_test)
 
-        st.pyplot(fig)
-    except Exception as e:
-        display_error(e)
+    # Plotting Actual vs Expected
+    fig, ax1 = plt.subplots()
 
-# Third Tab: Statistical Reports
-with tabs[2]:
-    st.header('Statistical Reports')
-    try:
-        st.write(data.describe())
-    except Exception as e:
-        display_error(e)
+    ax1.set_xlabel('Index')
+    ax1.set_ylabel('Actual', color='tab:blue')
+    ax1.plot(y_test.values, label='Actual', color='tab:blue')
+    ax1.tick_params(axis='y', labelcolor='tab:blue')
 
-# Fourth Tab: Model Benchmarking
-with tabs[3]:
-    st.header('Model Benchmarking')
-    try:
-        features = data.drop(columns=['CalculatedResult_NetPremiumDiffFromPredictedMarketPremiumAmt_bnd'])
-        target = data['CalculatedResult_NetPremiumDiffFromPredictedMarketPremiumAmt_bnd']
+    ax2 = ax1.twinx()  # instantiate a second axes that shares the same x-axis
+    ax2.set_ylabel('Expected', color='tab:red')  # we already handled the x-label with ax1
+    ax2.plot(y_pred, label='Predicted', color='tab:red')
+    ax2.tick_params(axis='y', labelcolor='tab:red')
 
-        X_train, X_test, y_train, y_test = train_test_split(features, target, test_size=0.2, random_state=42)
+    fig.tight_layout()  # otherwise the right y-label is slightly clipped
+    st.pyplot(fig)
 
-        models = {
-            'GLM': LinearRegression(),
-            'XGBoost': XGBRegressor(),
-            'LightGBM': LGBMRegressor(),
-            'CatBoost': CatBoostRegressor(silent=True),
-        }
-
-        # Train and save models
-        for name, model in models.items():
-            model.fit(X_train, y_train)
-            joblib.dump(model, f'{name}.pkl')  # Save model as .pkl
-
-        results = {name: model.score(X_test, y_test) for name, model in models.items()}
-        st.bar_chart(results)
-    except Exception as e:
-        display_error(e)
-
-# Fifth Tab: ROC Curve
-with tabs[4]:
-    st.header('ROC Curve for Best Model')
-    try:
-        best_model_name = st.selectbox('Select Best Model', list(models.keys()))
-
-        # Load the selected model
-        best_model = joblib.load(f'{best_model_name}.pkl')
-
-        y_pred_proba = best_model.predict(X_test)
-        fpr, tpr, _ = roc_curve(y_test, y_pred_proba)
-        roc_auc = auc(fpr, tpr)
-
-        plt.figure()
-        plt.plot(fpr, tpr, color='blue', lw=2, label='ROC curve (area = %0.2f)' % roc_auc)
-        plt.plot([0, 1], [0, 1], color='red', lw=2, linestyle='--')
-        plt.xlim([0.0, 1.0])
-        plt.ylim([0.0, 1.05])
-        plt.xlabel('False Positive Rate')
-        plt.ylabel('True Positive Rate')
-        plt.title('Receiver Operating Characteristic')
-        plt.legend(loc='lower right')
-        st.pyplot()
-    except Exception as e:
-        display_error(e)
-
-# Sixth Tab: SHAP Values
-with tabs[5]:
-    st.header('SHAP Values for Selected Model')
-    try:
-        best_model_name = st.selectbox('Select Best Model for SHAP', list(models.keys()))
-        best_model = joblib.load(f'{best_model_name}.pkl')
-
-        explainer = shap.Explainer(best_model, X_train)
-        shap_values = explainer(X_test)
-
-        st.subheader('SHAP Summary Plot')
-        shap.summary_plot(shap_values, X_test, plot_type="bar")
-        st.pyplot()
-    except Exception as e:
-        display_error(e)
-
-# Seventh Tab: Bayesian Optimization
-with tabs[6]:
-    st.header('Bayesian Optimization for XGBoost Hyperparameters')
-    try:
-        def xgb_evaluate(max_depth, gamma, learning_rate, n_estimators):
-            model = XGBRegressor(max_depth=int(max_depth), gamma=gamma, 
-                                  learning_rate=learning_rate, n_estimators=int(n_estimators))
-            model.fit(X_train, y_train)
-            return model.score(X_test, y_test)
-
-        # Define the bounds for the hyperparameters
-        pbounds = {
-            'max_depth': (3, 10),
-            'gamma': (0, 5),
-            'learning_rate': (0.01, 0.3),
-            'n_estimators': (50, 300)
-        }
-
-        optimizer = BayesianOptimization(
-            f=xgb_evaluate,
-            pbounds=pbounds,
-            random_state=1,
-        )
-
-        if st.button('Optimize'):
-            optimizer.maximize(init_points=2, n_iter=5)
-            st.success(f"Best parameters: {optimizer.max['params']}, Best score: {optimizer.max['target']}")
-    except Exception as e:
-        display_error(e)
+    # Display metrics
+    mse = mean_squared_error(y_test, y_pred)
+    st.write(f'Mean Squared Error: {mse:.2f}')
