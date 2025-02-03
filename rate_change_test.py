@@ -86,24 +86,31 @@ with tabs[1]:
         width=0.4  # Wider bars
     ))
 
-    # Adding line for Expected values in red
+    # Adding line for Expected values in red on a secondary y-axis
     fig.add_trace(go.Scatter(
         x=exposure_summary["Exposure_EscapeOfWater"],
         y=exposure_summary["Expected"],
         name='Expected',
         mode='lines+markers',
         line=dict(color='red'),
-        marker=dict(size=10)
+        marker=dict(size=10),
+        yaxis='y2'  # Assign to secondary y-axis
     ))
 
     # Update layout
     fig.update_layout(
         title='Actual vs Expected by Exposure',
         xaxis_title='Exposure (Number of Quotes for Escape of Water)',
-        yaxis_title='Values',
+        yaxis_title='Actual Values',
+        yaxis2=dict(
+            title='Expected Values',
+            overlaying='y',
+            side='right',
+            showgrid=False  # Hide grid for secondary y-axis
+        ),
         legend_title='Legend',
-        width=1000,  # Wider chart
-        height=600,  # Adjust height if needed
+        width=1200,  # Wider chart
+        height=700,  # Taller chart
         template='plotly_white'
     )
 
