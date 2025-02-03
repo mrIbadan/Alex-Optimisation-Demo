@@ -17,7 +17,7 @@ def generate_data(n_rows=10000):
         "ArUnspecifiedItems_AmtReqd_bnd": np.random.randint(0, 10, n_rows),
         "BuildingsCover_AccidentalDamageGrantedInd_bnd": np.random.randint(0, 2, n_rows),
         "BuildingsCover_VolXsGranted_bnd": np.random.randint(0, 5, n_rows),
-        "CalculatedResult_NetPremiumDiffFromPredictedMarketPremiumAmt_bnd": np.random.uniform(-100, 100, n_rows),
+        "CalculatedResult_NetPremiumDiffFromPredictedMarketPremiumAmt_bnd": np.random.uniform(0, 100, n_rows),
         "Occupation_v4": np.random.choice(["Professional", "Manual", "Retired", "Student"], n_rows),
         "Region_bnd": np.random.choice(["North", "South", "East", "West"], n_rows),
     }
@@ -94,22 +94,54 @@ with tabs[1]:
 
     # Plotly chart
     fig = go.Figure()
-    fig.add_trace(go.Bar(x=exposure_summary["Exposure_EscapeOfWater"],
-                         y=exposure_summary["Actual"],
-                         name='Actual',
-                         marker_color='blue', width=0.8))
-    fig.add_trace(go.Scatter(x=exposure_summary["Exposure_EscapeOfWater"],
-                             y=exposure_summary["Expected"],
-                             name='Expected',
-                             mode='lines+markers',
-                             line=dict(color='red', width=4),
-                             marker=dict(size=10)))
-    fig.update_layout(title='Actual vs Expected by Exposure',
-                      xaxis_title='Exposure',
-                      yaxis_title='Actual Values',
-                      width=1500, height=800,
-                      template='plotly_white')
+    fig.add_trace(go.Bar(
+        x=exposure_summary["Exposure_EscapeOfWater"],
+        y=exposure_summary["Actual"],
+        name='Actual',
+        marker_color='blue',
+        width=0.6  # Wider bars
+    ))
+    fig.add_trace(go.Scatter(
+        x=exposure_summary["Exposure_EscapeOfWater"],
+        y=exposure_summary["Expected"],
+        name='Expected',
+        mode='lines+markers',
+        line=dict(color='red', width=4),
+        marker=dict(size=10)
+    ))
+
+    fig.update_layout(
+        title='Actual vs Expected by Exposure',
+        xaxis_title='Exposure',
+        yaxis_title='Values',
+        width=1500, height=800,
+        template='plotly_white'
+    )
+
     fig.update_yaxes(range=[0, exposure_summary["Actual"].max() * 1.5])
+    fig.add_trace(go.Scatter(
+        x=exposure_summary["Exposure_EscapeOfWater"],
+        y=exposure_summary["Actual"],  # Duplicate for second Y-axis
+        name='Actual (Secondary)',
+        mode='lines',
+        line=dict(color='blue', width=2, dash='dash'),
+        yaxis='y2'
+    ))
+    fig.add_trace(go.Scatter(
+        x=exposure_summary["Exposure_EscapeOfWater"],
+        y=exposure_summary["Expected"],  # Duplicate for second Y-axis
+        name='Expected (Secondary)',
+        mode='lines',
+        line=dict(color='red', width=2, dash='dash'),
+        yaxis='y2'
+    ))
+
+    # Set up dual Y-axis
+    fig.update_layout(
+        yaxis=dict(title='Actual Values'),
+        yaxis2=dict(title='Expected Values', overlaying='y', side='right', showgrid=False)
+    )
+
     st.plotly_chart(fig, use_container_width=True)
 
     mse = mean_squared_error(y_test, y_pred)
