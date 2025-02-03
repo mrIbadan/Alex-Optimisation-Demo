@@ -15,7 +15,7 @@ def generate_data(n_rows=10000):
         "ArUnspecifiedItems_AmtReqd_bnd": np.random.randint(0, 10, n_rows),
         "BuildingsCover_AccidentalDamageGrantedInd_bnd": np.random.randint(0, 2, n_rows),
         "BuildingsCover_VolXsGranted_bnd": np.random.randint(0, 5, n_rows),
-        "CalculatedResult_NetPremiumDiffFromPredictedMarketPremiumAmt_bnd": np.random.uniform(-100, 100, n_rows),
+        "CalculatedResult_NetPremiumDiffFromPredictedMarketPremiumAmt_bnd": np.random.uniform(0, 100, n_rows),  # No negative values
         "Occupation_v4": np.random.choice(["Professional", "Manual", "Retired", "Student"], n_rows),
         "Region_bnd": np.random.choice(["North", "South", "East", "West"], n_rows),
     }
@@ -74,45 +74,54 @@ with tabs[1]:
         Expected=('CalculatedResult_NetPremiumDiffFromPredictedMarketPremiumAmt_bnd', 'mean')  # Placeholder for expected values
     ).reset_index()
 
+    # Scale the data for better visualization
+    exposure_summary["Actual"] *= 10  # Scale Actual values for more variation
+    exposure_summary["Expected"] *= 5  # Scale Expected values for more variation
+
     # Plotly chart
     fig = go.Figure()
 
-    # Adding bars for Actual values in green
+    # Adding bars for Actual values in blue
     fig.add_trace(go.Bar(
         x=exposure_summary["Exposure_EscapeOfWater"],
         y=exposure_summary["Actual"],
         name='Actual',
-        marker_color='blue',  # Bars in blue
-        width=0.6  # Wider bars
+        marker_color='blue',
+        width=0.8  # Wider bars
     ))
 
-    # Adding line for Expected values in red
+    # Adding line for Expected values in red on a secondary y-axis
     fig.add_trace(go.Scatter(
         x=exposure_summary["Exposure_EscapeOfWater"],
         y=exposure_summary["Expected"],
         name='Expected',
         mode='lines+markers',
-        line=dict(color='red'),
-        marker=dict(size=10)
+        line=dict(color='red', width=3),  # Thicker line
+        marker=dict(size=10),
+        yaxis='y2'  # Assign to secondary y-axis
     ))
 
-    # Update layout with larger dimensions and Y-axis starting at 0
+    # Update layout
     fig.update_layout(
         title='Actual vs Expected by Exposure',
         xaxis_title='Exposure (Number of Quotes for Escape of Water)',
-        yaxis_title='Values',
+        yaxis_title='Actual Values',
+        yaxis=dict(
+            rangemode='tozero',  # Start y-axis from 0
+            title='Actual Values'
+        ),
+        yaxis2=dict(
+            title='Expected Values',
+            overlaying='y',
+            side='right',
+            showgrid=False,  # Hide grid for secondary y-axis
+            rangemode='tozero'  # Start secondary y-axis from 0
+        ),
         legend_title='Legend',
-        width=1200,  # Wider chart
-        height=800,  # Adjust height for better visibility
+        width=1400,  # Wider chart
+        height=900,  # Taller chart
         template='plotly_white'
     )
-    
+
     # Set Y-axis range starting from 0
-    fig.update_yaxes(range=[0, max(exposure_summary["Actual"].max(), exposure_summary["Expected"].max()) * 1.1])  # 10% buffer above maximum
-
-    # Display Plotly chart
-    st.plotly_chart(fig)
-
-    # Display metrics
-    mse = mean_squared_error(y_test, y_pred)
-    st.write(f'Mean Squared Error: {mse:.2f}')
+    fig.update_yaxes(range=[0, max(exposure_summary["Actual"].max(), exposure_summary["Expected"].max()) * 1.1])  # 10%
