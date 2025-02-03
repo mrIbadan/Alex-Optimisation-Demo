@@ -1,124 +1,119 @@
-import subprocess
-import sys
 import streamlit as st
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
-import plotly.graph_objects as go
+import lightgbm as lgb
 from sklearn.model_selection import train_test_split
-from sklearn.linear_model import LinearRegression
-from xgboost import XGBRegressor
-from lightgbm import LGBMRegressor
-from catboost import CatBoostRegressor
-from sklearn.metrics import roc_curve, auc
+from sklearn.metrics import mean_squared_error
+import plotly.graph_objects as go
 
-def install_if_missing(package):
-    try:
-        __import__(package)
-    except ImportError:
-        subprocess.check_call([sys.executable, "-m", "pip", "install", package])
-
-# Install required packages
-packages = ["pandas", "numpy", "matplotlib", "seaborn", "plotly", "scikit-learn", "xgboost", "lightgbm", "catboost", "streamlit"]
-for package in packages:
-    install_if_missing(package)
-
-def generate_data(n=10000):
+# Generate synthetic data
+def generate_data(n_rows=10000):
     np.random.seed(42)
-    return pd.DataFrame({
-        'Premises_NoBedrooms_bnd': np.random.choice([1, 2, 3, 4, 5], n),
-        'ContentsCover_TotXsAmt_bnd': np.random.uniform(100, 1000, n),
-        'PremiumUnperturbed_BO_bnd': np.random.uniform(200, 500, n),
-        'PremiumUnperturbed_CO_bnd': np.random.uniform(250, 600, n),
-        'Exposure': np.random.randint(50, 500, n),
-        'Expected_Premium': np.random.uniform(300, 700, n),
-        'Average_Premium': np.random.uniform(250, 650, n),
-        'Target': np.random.choice([0, 1], n)
-    })
+    data = {
+        "Exposure_EscapeOfWater": np.random.randint(1, 100, n_rows),  # Exposure variable
+        "ArSpecifiedItems_AmtReqd_bnd": np.random.randint(0, 10, n_rows),
+        "ArUnspecifiedItems_AmtReqd_bnd": np.random.randint(0, 10, n_rows),
+        "BuildingsCover_AccidentalDamageGrantedInd_bnd": np.random.randint(0, 2, n_rows),
+        "BuildingsCover_VolXsGranted_bnd": np.random.randint(0, 5, n_rows),
+        "CalculatedResult_NetPremiumDiffFromPredictedMarketPremiumAmt_bnd": np.random.uniform(-100, 100, n_rows),
+        "Occupation_v4": np.random.choice(["Professional", "Manual", "Retired", "Student"], n_rows),
+        "Region_bnd": np.random.choice(["North", "South", "East", "West"], n_rows),
+    }
+    return pd.DataFrame(data)
 
-data = generate_data()
+# Load data
+df = generate_data()
 
-st.title("Insurance Home Claims Model")
-tabs = ["Rate Adjustment", "Exposure Analysis", "Statistical Reports", "Model Benchmarking", "ROC Curve"]
-selected_tab = st.sidebar.radio("Select a tab", tabs)
+# Streamlit app
+st.image("https://raw.githubusercontent.com/mrIbadan/Alex-Optimisation-Demo/main/Integra-Logo.jpg", width=150)  # Logo URL
+st.markdown("<h1 style='text-align: left;'>Insurance Home Claims Model</h1>", unsafe_allow_html=True)
 
-if selected_tab == "Rate Adjustment":
-    st.header("Rate Adjustment Tool")
-    adjustment_type = st.radio("Choose Adjustment Type", ["Percentage", "Absolute"])
-    adjustment_value = st.number_input("Enter Adjustment Value", value=0.0)
-    factor = st.selectbox("Select Factor to Adjust", data.columns)
-    
-    if st.button("Apply Adjustment"):
-        if adjustment_type == 'Percentage':
-            data[factor] *= (1 + adjustment_value / 100)
+# Tab layout
+tabs = st.tabs(['Rate Change', 'Actual vs Expected'])
+
+# First Tab: Rate Change
+with tabs[0]:
+    st.image("https://raw.githubusercontent.com/mrIbadan/Alex-Optimisation-Demo/main/Integra-Logo.jpg", width=150)  # Logo for Rate Change tab
+    st.header('Rate Change Interface')
+    selected_factor = st.selectbox('Select Factor to Change', df.columns)
+    change_type = st.radio('Change Type', ('Price', 'Percentage'))
+    change_value = st.number_input('Enter Change Value', value=0.0)
+
+    if st.button('Apply Change'):
+        if change_type == 'Price':
+            df[selected_factor] += change_value
         else:
-            data[factor] += adjustment_value
-        st.write(f"Applied {adjustment_type} adjustment of {adjustment_value} to {factor}")
-        st.dataframe(data.head())
+            df[selected_factor] *= (1 + change_value / 100)
+        st.success(f'Successfully changed {selected_factor} by {change_value} {change_type}')
 
-elif selected_tab == "Exposure Analysis":
-    st.header("Exposure Analysis")
+# Second Tab: Actual vs Expected
+with tabs[1]:
+    st.image("https://raw.githubusercontent.com/mrIbadan/Alex-Optimisation-Demo/main/Integra-Logo.jpg", width=150)  # Logo for Actual vs Expected tab
+    st.header('Actual vs Expected Model')
+
+    # Preprocess the data
+    df_encoded = pd.get_dummies(df, columns=["Occupation_v4", "Region_bnd"], drop_first=True)
+
+    # Prepare data for modeling
+    features = df_encoded.drop(columns=["CalculatedResult_NetPremiumDiffFromPredictedMarketPremiumAmt_bnd"])
+    target = df_encoded["CalculatedResult_NetPremiumDiffFromPredictedMarketPremiumAmt_bnd"]
+
+    # Split the data
+    X_train, X_test, y_train, y_test = train_test_split(features, target, test_size=0.2, random_state=42)
+
+    # Train a LightGBM model
+    model = lgb.LGBMRegressor()
+    model.fit(X_train, y_train)
+
+    # Make predictions
+    y_pred = model.predict(X_test)
+
+    # Prepare data for the chart
+    exposure_summary = df.groupby("Exposure_EscapeOfWater").agg(
+        Actual=('CalculatedResult_NetPremiumDiffFromPredictedMarketPremiumAmt_bnd', 'mean'),
+        Expected=('CalculatedResult_NetPremiumDiffFromPredictedMarketPremiumAmt_bnd', 'mean')  # Placeholder for expected values
+    ).reset_index()
+
+    # Plotly chart
     fig = go.Figure()
-    fig.add_trace(go.Bar(x=data['Exposure'], y=data['Average_Premium'], name='Average Premium', marker_color='blue', width=2))
-    fig.add_trace(go.Scatter(x=data['Exposure'], y=data['Expected_Premium'], name='Expected Premium', mode='lines+markers', line=dict(color='red', width=3)))
-    
+
+    # Adding bars for Actual values in green
+    fig.add_trace(go.Bar(
+        x=exposure_summary["Exposure_EscapeOfWater"],
+        y=exposure_summary["Actual"],
+        name='Actual',
+        marker_color='blue',  # Bars in blue
+        width=0.8  # Wider bars
+    ))
+
+    # Adding line for Expected values in red
+    fig.add_trace(go.Scatter(
+        x=exposure_summary["Exposure_EscapeOfWater"],
+        y=exposure_summary["Expected"],
+        name='Expected',
+        mode='lines+markers',
+        line=dict(color='red', width=4),  # Thicker line for visibility
+        marker=dict(size=10)
+    ))
+
+    # Update layout for full-sized chart
     fig.update_layout(
-        title="Exposure vs Premium",
-        xaxis_title="Exposure",
-        yaxis_title="Premium",
-        legend_title="Legend",
-        width=1600,
-        height=1000,
-        margin=dict(l=50, r=50, t=50, b=50)
+        title='Actual vs Expected by Exposure',
+        xaxis_title='Exposure (Number of Quotes for Escape of Water)',
+        yaxis_title='Values',
+        legend_title='Legend',
+        width=1500,  # Wider chart
+        height=800,  # Adjust height for better visibility
+        template='plotly_white'
     )
+    
+    # Set Y-axis range starting from 0, with more variation
+    max_value = max(exposure_summary["Actual"].max(), exposure_summary["Expected"].max())
+    fig.update_yaxes(range=[0, max_value * 1.5])  # 50% buffer above maximum
+
+    # Display Plotly chart in full width
     st.plotly_chart(fig, use_container_width=True)
 
-elif selected_tab == "Statistical Reports":
-    st.header("Statistical Summary")
-    st.write(data.describe())
-
-elif selected_tab == "Model Benchmarking":
-    st.header("Benchmarking Models")
-    X = data[['Premises_NoBedrooms_bnd', 'ContentsCover_TotXsAmt_bnd']]
-    y = data['PremiumUnperturbed_BO_bnd']
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-
-    models = {
-        'Linear Regression': LinearRegression(),
-        'XGBoost': XGBRegressor(),
-        'LightGBM': LGBMRegressor(),
-        'CatBoost': CatBoostRegressor(verbose=0)
-    }
-
-    results = {}
-    for name, model in models.items():
-        model.fit(X_train, y_train)
-        results[name] = model.score(X_test, y_test)
-    
-    fig, ax = plt.subplots()
-    ax.bar(results.keys(), results.values())
-    ax.set_ylabel("Model Score")
-    ax.set_title("Model Performance Comparison")
-    st.pyplot(fig)
-
-elif selected_tab == "ROC Curve":
-    st.header("ROC Curve Analysis")
-    X = data[['Premises_NoBedrooms_bnd', 'ContentsCover_TotXsAmt_bnd']]
-    y = data['Target']
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-
-    best_model = XGBRegressor()
-    best_model.fit(X_train, y_train)
-    y_pred_prob = best_model.predict(X_test)
-    fpr, tpr, _ = roc_curve(y_test, y_pred_prob)
-    roc_auc = auc(fpr, tpr)
-    
-    fig, ax = plt.subplots()
-    ax.plot(fpr, tpr, label=f'ROC curve (area = {roc_auc:.2f}')
-    ax.plot([0, 1], [0, 1], 'k--')
-    ax.set_xlabel("False Positive Rate")
-    ax.set_ylabel("True Positive Rate")
-    ax.set_title("Receiver Operating Characteristic")
-    ax.legend()
-    st.pyplot(fig)
+    # Display metrics
+    mse = mean_squared_error(y_test, y_pred)
+    st.write(f'Mean Squared Error: {mse:.2f}')
