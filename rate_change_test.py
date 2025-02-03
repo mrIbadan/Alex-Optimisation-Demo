@@ -11,6 +11,7 @@ from sklearn.linear_model import LinearRegression
 from sklearn.metrics import roc_curve, auc
 import joblib
 import shap  # For SHAP values
+from bayes_opt import BayesianOptimization  # For Bayesian Optimization
 
 # Generate synthetic data
 def generate_data(rows=10000):
@@ -41,7 +42,7 @@ def display_error(error_message):
     st.error(f"Error: {error_message}")
 
 # Tabs for the application
-tabs = st.tabs(['Rate Change', 'Exposure Analysis', 'Statistical Reports', 'Model Benchmarking', 'ROC Curve', 'SHAP Values'])
+tabs = st.tabs(['Rate Change', 'Exposure Analysis', 'Statistical Reports', 'Model Benchmarking', 'ROC Curve', 'SHAP Values', 'Bayesian Optimization'])
 
 # First Tab: Rate Change
 with tabs[0]:
@@ -156,5 +157,35 @@ with tabs[5]:
         st.subheader('SHAP Summary Plot')
         shap.summary_plot(shap_values, X_test, plot_type="bar")
         st.pyplot()
+    except Exception as e:
+        display_error(e)
+
+# Seventh Tab: Bayesian Optimization
+with tabs[6]:
+    st.header('Bayesian Optimization for XGBoost Hyperparameters')
+    try:
+        def xgb_evaluate(max_depth, gamma, learning_rate, n_estimators):
+            model = XGBRegressor(max_depth=int(max_depth), gamma=gamma, 
+                                  learning_rate=learning_rate, n_estimators=int(n_estimators))
+            model.fit(X_train, y_train)
+            return model.score(X_test, y_test)
+
+        # Define the bounds for the hyperparameters
+        pbounds = {
+            'max_depth': (3, 10),
+            'gamma': (0, 5),
+            'learning_rate': (0.01, 0.3),
+            'n_estimators': (50, 300)
+        }
+
+        optimizer = BayesianOptimization(
+            f=xgb_evaluate,
+            pbounds=pbounds,
+            random_state=1,
+        )
+
+        if st.button('Optimize'):
+            optimizer.maximize(init_points=2, n_iter=5)
+            st.success(f"Best parameters: {optimizer.max['params']}, Best score: {optimizer.max['target']}")
     except Exception as e:
         display_error(e)
