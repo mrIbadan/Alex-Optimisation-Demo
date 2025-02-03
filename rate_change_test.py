@@ -33,6 +33,7 @@ tabs = st.tabs(['Rate Change', 'Actual vs Expected'])
 
 # First Tab: Rate Change
 with tabs[0]:
+    st.image("https://raw.githubusercontent.com/mrIbadan/Alex-Optimisation-Demo/main/Integra-Logo.jpg", width=150)  # Logo for Rate Change tab
     st.header('Rate Change Interface')
     selected_factor = st.selectbox('Select Factor to Change', df.columns)
     change_type = st.radio('Change Type', ('Price', 'Percentage'))
@@ -47,6 +48,7 @@ with tabs[0]:
 
 # Second Tab: Actual vs Expected
 with tabs[1]:
+    st.image("https://raw.githubusercontent.com/mrIbadan/Alex-Optimisation-Demo/main/Integra-Logo.jpg", width=150)  # Logo for Actual vs Expected tab
     st.header('Actual vs Expected Model')
 
     # Preprocess the data
@@ -67,17 +69,32 @@ with tabs[1]:
     y_pred = model.predict(X_test)
 
     # Prepare data for bar chart
-    exposure_summary = df.groupby("Exposure_EscapeOfWater")["CalculatedResult_NetPremiumDiffFromPredictedMarketPremiumAmt_bnd"].mean().reset_index()
+    exposure_summary = df.groupby("Exposure_EscapeOfWater").agg(
+        Actual=('CalculatedResult_NetPremiumDiffFromPredictedMarketPremiumAmt_bnd', 'mean'),
+        Expected=('CalculatedResult_NetPremiumDiffFromPredictedMarketPremiumAmt_bnd', 'mean')  # Placeholder for expected values
+    ).reset_index()
 
     # Plotting bar chart for Exposure
-    plt.figure(figsize=(12, 6))
-    plt.bar(exposure_summary["Exposure_EscapeOfWater"], exposure_summary["CalculatedResult_NetPremiumDiffFromPredictedMarketPremiumAmt_bnd"], color='skyblue')
-    plt.xlabel('Exposure (Number of Quotes for Escape of Water)')
-    plt.ylabel('Average Net Premium Difference')
-    plt.title('Average Net Premium Difference by Exposure')
-    plt.xticks(rotation=45)
-    plt.grid(axis='y')
-    st.pyplot(plt)
+    fig, ax1 = plt.subplots(figsize=(12, 6))
+
+    # Bar chart for Actual values
+    bars = ax1.bar(exposure_summary["Exposure_EscapeOfWater"], exposure_summary["Actual"], color='skyblue', label='Actual')
+    ax1.set_xlabel('Exposure (Number of Quotes for Escape of Water)')
+    ax1.set_ylabel('Actual', color='blue')
+    ax1.tick_params(axis='y', labelcolor='blue')
+
+    # Creating a second y-axis for Expected values
+    ax2 = ax1.twinx()
+    ax2.plot(exposure_summary["Exposure_EscapeOfWater"], exposure_summary["Expected"], color='red', marker='o', label='Expected')
+    ax2.set_ylabel('Expected', color='red')
+    ax2.tick_params(axis='y', labelcolor='red')
+
+    # Adding Legends
+    ax1.legend(loc='upper left')
+    ax2.legend(loc='upper right')
+
+    plt.title('Actual vs Expected by Exposure')
+    st.pyplot(fig)
 
     # Display metrics
     mse = mean_squared_error(y_test, y_pred)
