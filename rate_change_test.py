@@ -88,9 +88,9 @@ with tabs[1]:
     y_pred = model.predict(X_test)
 
     # Prepare data for the chart
-    exposure_summary = df.groupby("Exposure_EscapeOfWater").agg(
+    exposure_summary = df_encoded.groupby("Exposure_EscapeOfWater").agg(
         Actual=('CalculatedResult_NetPremiumDiffFromPredictedMarketPremiumAmt_bnd', 'mean'),
-        Expected=('CalculatedResult_NetPremiumDiffFromPredictedMarketPremiumAmt_bnd', 'mean')  # Placeholder
+        Expected=('CalculatedResult_NetPremiumDiffFromPredictedMarketPremiumAmt_bnd', 'mean')  # Placeholder for Expected
     ).reset_index()
 
     # Plotly chart
@@ -102,8 +102,7 @@ with tabs[1]:
         y=exposure_summary["Actual"],
         name='Actual',
         marker_color='blue',
-        width=0.4,
-        yaxis='y1'
+        width=0.4
     ))
 
     # Adding line for Expected values
@@ -112,8 +111,7 @@ with tabs[1]:
         y=exposure_summary["Expected"],
         name='Expected',
         mode='lines+markers',
-        line=dict(color='red', width=2),
-        yaxis='y2'
+        line=dict(color='red', width=2)
     ))
 
     # Update layout for dual-axis
@@ -122,12 +120,6 @@ with tabs[1]:
         xaxis_title='Exposure (Number of Quotes for Escape of Water)',
         yaxis_title='Actual Values',
         yaxis=dict(range=[0, exposure_summary["Actual"].max() * 1.2]),  # Ensure no negative values
-        yaxis2=dict(
-            title='Expected Values',
-            overlaying='y',
-            side='right',
-            range=[0, exposure_summary["Expected"].max() * 1.2]  # Ensure no negative values
-        ),
         width=1500,
         height=800,
         template='plotly_white'
