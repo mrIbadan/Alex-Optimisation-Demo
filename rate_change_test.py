@@ -77,13 +77,13 @@ with tabs[1]:
     # Plotly chart
     fig = go.Figure()
 
-    # Adding bars for Actual values in green
+    # Adding bars for Exposure in blue
     fig.add_trace(go.Bar(
         x=exposure_summary["Exposure_EscapeOfWater"],
         y=exposure_summary["Actual"],
         name='Actual',
         marker_color='blue',  # Bars in blue
-        width=0.8  # Wider bars
+        width=0.5  # Wider bars
     ))
 
     # Adding line for Expected values in red
@@ -96,20 +96,42 @@ with tabs[1]:
         marker=dict(size=10)
     ))
 
-    # Update layout for full-sized chart
+    # Update layout for full-sized chart and dual axes
     fig.update_layout(
         title='Actual vs Expected by Exposure',
         xaxis_title='Exposure (Number of Quotes for Escape of Water)',
-        yaxis_title='Values',
+        yaxis_title='Actual Values',
         legend_title='Legend',
         width=1500,  # Wider chart
         height=800,  # Adjust height for better visibility
         template='plotly_white'
     )
     
-    # Set Y-axis range starting from 0, with more variation
-    max_value = max(exposure_summary["Actual"].max(), exposure_summary["Expected"].max())
-    fig.update_yaxes(range=[0, max_value * 1.5])  # 50% buffer above maximum
+    # Set Y-axis range starting from 0 for Actual
+    fig.update_yaxes(range=[0, exposure_summary["Actual"].max() * 1.5], title_text="Actual Values", secondary_y=False, title_font=dict(color="green"), tickfont=dict(color="green"))
+
+    # Add second Y-axis for Expected values
+    fig.add_trace(go.Scatter(
+        x=exposure_summary["Exposure_EscapeOfWater"],
+        y=exposure_summary["Expected"],
+        name='Expected',
+        mode='lines+markers',
+        line=dict(color='red', width=4),
+        marker=dict(size=10),
+        yaxis='y2'
+    ))
+
+    # Set properties for the second Y-axis
+    fig.update_layout(
+        yaxis2=dict(
+            title='Expected Values',
+            overlaying='y',
+            side='right',
+            title_font=dict(color="red"),
+            tickfont=dict(color="red"),
+            range=[0, exposure_summary["Expected"].max() * 1.5]  # Adjust for better visibility
+        )
+    )
 
     # Display Plotly chart in full width
     st.plotly_chart(fig, use_container_width=True)
