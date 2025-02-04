@@ -71,14 +71,16 @@ with tabs[1]:
     # Preprocess the data
     df_encoded = pd.get_dummies(df, columns=["Occupation_v4", "Region_bnd"], drop_first=True)
 
-    # Ensure the DataFrame has the correct columns
-    features = df_encoded.drop(columns=["CalculatedResult_NetPremiumDiffFromPredictedMarketPremiumAmt_bnd"])
-
     # Check the model's expected feature names
     expected_features = model.feature_name_
 
-    # Reindex features to match the model's expected feature set
-    features = features.reindex(columns=expected_features, fill_value=0)
+    # Align features with the model's expected features
+    features = df_encoded.reindex(columns=expected_features, fill_value=0)
+
+    # Confirm the shape of features
+    if features.shape[1] != len(expected_features):
+        st.error("Feature mismatch! Check your input features.")
+        st.stop()
 
     # Make predictions for the whole dataset
     all_predictions = model.predict(features)
@@ -146,7 +148,7 @@ with tabs[2]:
 
     model = load_model()  # Load the model again for Shapley values
     df_encoded = pd.get_dummies(df, columns=["Occupation_v4", "Region_bnd"], drop_first=True)
-    features = df_encoded.drop(columns=["CalculatedResult_NetPremiumDiffFromPredictedMarketPremiumAmt_bnd"])
+    features = df_encoded.reindex(columns=expected_features, fill_value=0)
 
     # Calculate Shapley values
     explainer = shap.Explainer(model)
