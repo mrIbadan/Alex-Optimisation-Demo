@@ -1,22 +1,20 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import lightgbm as lgb
 import pickle
+import requests
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error
 import plotly.graph_objects as go
 import shap
 
-# Load the model from the URL
+# Load the model from the GitHub raw URL
 @st.cache_resource
 def load_model():
     url = "https://github.com/mrIbadan/Alex-Optimisation-Demo/raw/main/home_insurance_model.pkl"
     response = requests.get(url)
-    with open("home_insurance_model.pkl", "wb") as f:
-        f.write(response.content)
-    with open("home_insurance_model.pkl", "rb") as f:
-        model = pickle.load(f)
+    response.raise_for_status()  # Raise an error for bad responses
+    model = pickle.loads(response.content)
     return model
 
 # Generate synthetic data
@@ -78,11 +76,11 @@ with tabs[1]:
     # Prepare data for the chart
     exposure_summary = df_encoded.groupby("Exposure_EscapeOfWater").agg(
         Actual=('CalculatedResult_NetPremiumDiffFromPredictedMarketPremiumAmt_bnd', 'mean'),
-        Expected=('CalculatedResult_NetPremiumDiffFromPredictedMarketPremiumAmt_bnd', 'mean')  # Placeholder
+        Expected=('CalculatedResult_NetPremiumDiffFromPredictedMarketPremiumAmt_bnd', 'mean')
     ).reset_index()
 
     # Use predictions for Expected
-    exposure_summary['Expected'] = model.predict(features.groupby("Exposure_EscapeOfWater").mean().reset_index())
+    exposure_summary['Expected'] = model.predict(features)
 
     # Plotly chart
     fig = go.Figure()
