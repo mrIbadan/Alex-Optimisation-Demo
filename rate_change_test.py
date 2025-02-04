@@ -46,14 +46,20 @@ def display_logo():
 df = generate_data()
 
 # Streamlit app
+st.set_page_config(page_title="Insurance Home Claims Model", layout="wide")
 display_logo()
 st.markdown("<h1 style='text-align: left;'>Insurance Home Claims Model</h1>", unsafe_allow_html=True)
 
 # Load model
 model = load_model()
 
-# Initialize expected values
-df['Expected'] = model.predict(pd.get_dummies(df, columns=["Occupation_v4", "Region_bnd"], drop_first=True))
+# Prepare initial expected values
+df_encoded = pd.get_dummies(df, columns=["Occupation_v4", "Region_bnd"], drop_first=True)
+expected_features = model.feature_name_
+
+# Ensure the dataframe has the correct features
+df_encoded = df_encoded.reindex(columns=expected_features, fill_value=0)
+df['Expected'] = model.predict(df_encoded)
 
 # Tab layout
 tabs = st.tabs(['Rate Change', 'Actual vs Expected', 'Shapley Values'])
@@ -74,10 +80,8 @@ with tabs[0]:
 
         # Recalculate expected values after change
         df_encoded = pd.get_dummies(df, columns=["Occupation_v4", "Region_bnd"], drop_first=True)
-        expected_features = model.feature_name_
-        features = df_encoded.reindex(columns=expected_features, fill_value=0)
-        expected_predictions = model.predict(features)
-        df['Expected'] = expected_predictions
+        df_encoded = df_encoded.reindex(columns=expected_features, fill_value=0)
+        df['Expected'] = model.predict(df_encoded)
 
         # Calculate and display KPIs
         expected_loss_ratio = (df['Expected'].sum() / df['CalculatedResult_NetPremiumDiffFromPredictedMarketPremiumAmt_bnd'].sum()) * 100
@@ -137,13 +141,12 @@ with tabs[2]:
 
     # Calculate Shapley values
     df_encoded = pd.get_dummies(df, columns=["Occupation_v4", "Region_bnd"], drop_first=True)
-    expected_features = model.feature_name_
-    features = df_encoded.reindex(columns=expected_features, fill_value=0)
+    df_encoded = df_encoded.reindex(columns=expected_features, fill_value=0)
 
-    explainer = shap.Explainer(model)  # Assuming the model can be used directly
-    shap_values = explainer(features)
+    explainer = shap.Explainer(model)
+    shap_values = explainer(df_encoded)
 
     # Plot SHAP summary
     st.subheader("SHAP Summary Plot")
-    shap.summary_plot(shap_values, features, plot_type="bar", show=False)
+    shap.summary_plot(shap_values, df_encoded, plot_type="bar", show=False)
     st.pyplot()  # Render the SHAP plot
