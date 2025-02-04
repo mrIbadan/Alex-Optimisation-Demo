@@ -99,34 +99,41 @@ with tabs[1]:
         Count=('CalculatedResult_NetPremiumDiffFromPredictedMarketPremiumAmt_bnd', 'count')
     ).reset_index()
 
-    # Plotly chart with bars for actual values and lines for expected values
+    # Filter selection
+    filter_factor = st.selectbox('Select Filter', df.columns)
+    filtered_summary = exposure_summary[exposure_summary[filter_factor].notna()]
+
+    # Plotly chart with separate Y axes for actual and expected values
     fig = go.Figure()
 
-    # Actual values as bars
+    # Actual values as bars (X-axis: Exposure, Y-axis: Actual)
     fig.add_trace(go.Bar(
-        x=exposure_summary["Exposure_EscapeOfWater"],
-        y=exposure_summary["Actual"],
+        x=filtered_summary["Exposure_EscapeOfWater"],
+        y=filtered_summary["Actual"],
         name='Actual',
         marker_color='blue',
-        width=0.4,
-        opacity=0.6
+        width=0.6,  # Wider bars
+        opacity=0.6,
+        yaxis='y1'
     ))
 
-    # Expected values as a line
+    # Expected values as a line (Y-axis: Expected)
     fig.add_trace(go.Scatter(
-        x=exposure_summary["Exposure_EscapeOfWater"],
-        y=exposure_summary['Expected'],
+        x=filtered_summary["Exposure_EscapeOfWater"],
+        y=filtered_summary['Expected'],
         name='Expected',
         mode='lines+markers',
-        line=dict(color='red', width=2),
-        marker=dict(size=8)
+        line=dict(color='red', width=3),  # Thicker line
+        marker=dict(size=8),
+        yaxis='y2'
     ))
 
-    # Update layout for the chart
+    # Create secondary Y-axis
     fig.update_layout(
         title='Actual vs Expected by Exposure',
         xaxis_title='Exposure',
-        yaxis_title='Values',
+        yaxis_title='Actual',
+        yaxis2=dict(title='Expected', overlaying='y', side='right'),
         width=1500,
         height=800,
         template='plotly_white'
