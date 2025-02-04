@@ -17,7 +17,7 @@ def load_model():
     model = pickle.loads(response.content)
     return model
 
-# Generate more realistic synthetic data
+# Generate realistic synthetic data
 def generate_data(n_rows=10000):
     np.random.seed(42)
     regions = [
@@ -70,6 +70,8 @@ with tabs[1]:
 
     # Preprocess the data
     df_encoded = pd.get_dummies(df, columns=["Occupation_v4", "Region_bnd"], drop_first=True)
+    
+    # Ensure the DataFrame has the correct columns
     features = df_encoded.drop(columns=["CalculatedResult_NetPremiumDiffFromPredictedMarketPremiumAmt_bnd"])
 
     # Make predictions for the whole dataset
@@ -89,7 +91,7 @@ with tabs[1]:
         y=exposure_summary["Actual"],
         name='Actual',
         marker_color='blue',
-        width=0.9  # Wider bars
+        width=0.9
     ))
     fig.add_trace(go.Scatter(
         x=exposure_summary["Exposure_EscapeOfWater"],
@@ -108,7 +110,7 @@ with tabs[1]:
         template='plotly_white'
     )
 
-    # Adjust the y-axis for better variation
+    # Adjust the y-axis for better visibility
     fig.update_yaxes(range=[0, max(exposure_summary["Actual"].max(), exposure_summary["Expected"].max()) * 1.5])
     st.plotly_chart(fig, use_container_width=True)
 
