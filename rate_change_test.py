@@ -112,9 +112,8 @@ with tabs[1]:
         y=filtered_summary["Actual"],
         name='Actual',
         marker_color='blue',
-        width=0.6,  # Wider bars
+        width=0.5,  # Wider bars
         opacity=0.6,
-        yaxis='y1'
     ))
 
     # Expected values as a line (Y-axis: Expected)
@@ -123,17 +122,15 @@ with tabs[1]:
         y=filtered_summary['Expected'],
         name='Expected',
         mode='lines+markers',
-        line=dict(color='red', width=3),  # Thicker line
+        line=dict(color='red', width=4),  # Thicker line for visibility
         marker=dict(size=8),
-        yaxis='y2'
     ))
 
-    # Create secondary Y-axis
+    # Update layout for the chart
     fig.update_layout(
         title='Actual vs Expected by Exposure',
         xaxis_title='Exposure',
-        yaxis_title='Actual',
-        yaxis2=dict(title='Expected', overlaying='y', side='right'),
+        yaxis_title='Values',
         width=1500,
         height=800,
         template='plotly_white'
