@@ -3,8 +3,6 @@ import pandas as pd
 import numpy as np
 import pickle
 import requests
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import mean_squared_error
 import plotly.graph_objects as go
 import shap
 
@@ -99,38 +97,38 @@ with tabs[1]:
         Count=('CalculatedResult_NetPremiumDiffFromPredictedMarketPremiumAmt_bnd', 'count')
     ).reset_index()
 
-    # Filter selection
-    filter_factor = st.selectbox('Select Filter', df.columns)
-    filtered_summary = exposure_summary[exposure_summary[filter_factor].notna()]
-
-    # Plotly chart with separate Y axes for actual and expected values
+    # Create the combined bar and line chart with separate Y-axes
     fig = go.Figure()
 
-    # Actual values as bars (X-axis: Exposure, Y-axis: Actual)
+    # Actual values as bars (Y-axis 1)
     fig.add_trace(go.Bar(
-        x=filtered_summary["Exposure_EscapeOfWater"],
-        y=filtered_summary["Actual"],
+        x=exposure_summary["Exposure_EscapeOfWater"],
+        y=exposure_summary["Actual"],
         name='Actual',
         marker_color='blue',
-        width=0.5,  # Wider bars
+        width=0.4,  # Wider bars
         opacity=0.6,
+        yaxis='y1'
     ))
 
-    # Expected values as a line (Y-axis: Expected)
+    # Expected values as a line (Y-axis 2)
     fig.add_trace(go.Scatter(
-        x=filtered_summary["Exposure_EscapeOfWater"],
-        y=filtered_summary['Expected'],
+        x=exposure_summary["Exposure_EscapeOfWater"],
+        y=exposure_summary['Expected'],
         name='Expected',
         mode='lines+markers',
         line=dict(color='red', width=4),  # Thicker line for visibility
         marker=dict(size=8),
+        yaxis='y2'
     ))
 
-    # Update layout for the chart
+    # Update layout for the chart to include two Y-axes
     fig.update_layout(
         title='Actual vs Expected by Exposure',
         xaxis_title='Exposure',
-        yaxis_title='Values',
+        yaxis_title='Actual',
+        yaxis=dict(title='Actual', side='left', showgrid=False),
+        yaxis2=dict(title='Expected', overlaying='y', side='right', showgrid=False),
         width=1500,
         height=800,
         template='plotly_white'
