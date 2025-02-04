@@ -90,42 +90,58 @@ with tabs[0]:
 with tabs[1]:
     st.header('Actual vs Expected Model')
 
-    # Prepare data for the chart
-    exposure_summary = df.groupby("Exposure_EscapeOfWater").agg(
-        Actual=('CalculatedResult_NetPremiumDiffFromPredictedMarketPremiumAmt_bnd', 'mean'),
-        Expected=('Expected', 'mean'),
-        Count=('CalculatedResult_NetPremiumDiffFromPredictedMarketPremiumAmt_bnd', 'count')
-    ).reset_index()
+    # Drop-down to select the factor for analysis
+    factor = st.selectbox('Select Factor', ['Region', 'Occupation', 'Exposure'])
+
+    # Prepare data based on the selected factor
+    if factor == 'Region':
+        exposure_summary = df.groupby("Region_bnd").agg(
+            Actual=('CalculatedResult_NetPremiumDiffFromPredictedMarketPremiumAmt_bnd', 'mean'),
+            Expected=('Expected', 'mean'),
+            Count=('CalculatedResult_NetPremiumDiffFromPredictedMarketPremiumAmt_bnd', 'count')
+        ).reset_index()
+    elif factor == 'Occupation':
+        exposure_summary = df.groupby("Occupation_v4").agg(
+            Actual=('CalculatedResult_NetPremiumDiffFromPredictedMarketPremiumAmt_bnd', 'mean'),
+            Expected=('Expected', 'mean'),
+            Count=('CalculatedResult_NetPremiumDiffFromPredictedMarketPremiumAmt_bnd', 'count')
+        ).reset_index()
+    else:  # Exposure
+        exposure_summary = df.groupby("Exposure_EscapeOfWater").agg(
+            Actual=('CalculatedResult_NetPremiumDiffFromPredictedMarketPremiumAmt_bnd', 'mean'),
+            Expected=('Expected', 'mean'),
+            Count=('CalculatedResult_NetPremiumDiffFromPredictedMarketPremiumAmt_bnd', 'count')
+        ).reset_index()
 
     # Create the combined bar and line chart with separate Y-axes
     fig = go.Figure()
 
     # Actual values as bars (Y-axis 1)
     fig.add_trace(go.Bar(
-        x=exposure_summary["Exposure_EscapeOfWater"],
+        x=exposure_summary[factor],
         y=exposure_summary["Actual"],
         name='Actual',
-        marker_color='blue',
-        width=0.4,  # Wider bars
+        marker_color='green',
+        width=0.6,  # Wider bars
         opacity=0.6,
         yaxis='y1'
     ))
 
     # Expected values as a line (Y-axis 2)
     fig.add_trace(go.Scatter(
-        x=exposure_summary["Exposure_EscapeOfWater"],
+        x=exposure_summary[factor],
         y=exposure_summary['Expected'],
         name='Expected',
         mode='lines+markers',
-        line=dict(color='red', width=4),  # Thicker line for visibility
+        line=dict(color='red', width=4),
         marker=dict(size=8),
         yaxis='y2'
     ))
 
     # Update layout for the chart to include two Y-axes
     fig.update_layout(
-        title='Actual vs Expected by Exposure',
-        xaxis_title='Exposure',
+        title='Actual vs Expected by ' + factor,
+        xaxis_title=factor,
         yaxis_title='Actual',
         yaxis=dict(title='Actual', side='left', showgrid=False),
         yaxis2=dict(title='Expected', overlaying='y', side='right', showgrid=False),
