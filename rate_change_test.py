@@ -17,18 +17,24 @@ def load_model():
     model = pickle.loads(response.content)
     return model
 
-# Generate synthetic data
+# Generate more realistic synthetic data
 def generate_data(n_rows=10000):
     np.random.seed(42)
+    regions = [
+        "Northern Ireland", "Scotland", "Wales", "East Midlands", 
+        "East of England", "London", "North East", "North West", 
+        "South East", "South West", "West Midlands", "Yorkshire and The Humber"
+    ]
+    
     data = {
-        "Exposure_EscapeOfWater": np.random.randint(1, 100, n_rows),
+        "Exposure_EscapeOfWater": np.random.normal(loc=50, scale=20, size=n_rows).clip(0, 100),
         "ArSpecifiedItems_AmtReqd_bnd": np.random.randint(0, 10, n_rows),
         "ArUnspecifiedItems_AmtReqd_bnd": np.random.randint(0, 10, n_rows),
         "BuildingsCover_AccidentalDamageGrantedInd_bnd": np.random.randint(0, 2, n_rows),
         "BuildingsCover_VolXsGranted_bnd": np.random.randint(0, 5, n_rows),
         "CalculatedResult_NetPremiumDiffFromPredictedMarketPremiumAmt_bnd": np.random.uniform(0, 100, n_rows),
         "Occupation_v4": np.random.choice(["Professional", "Manual", "Retired", "Student"], n_rows),
-        "Region_bnd": np.random.choice(["North", "South", "East", "West"], n_rows),
+        "Region_bnd": np.random.choice(regions, n_rows),
     }
     return pd.DataFrame(data)
 
@@ -65,17 +71,16 @@ with tabs[1]:
     # Preprocess the data
     df_encoded = pd.get_dummies(df, columns=["Occupation_v4", "Region_bnd"], drop_first=True)
     features = df_encoded.drop(columns=["CalculatedResult_NetPremiumDiffFromPredictedMarketPremiumAmt_bnd"])
-    
+
     # Make predictions for the whole dataset
     all_predictions = model.predict(features)
 
     # Prepare data for the chart
-    exposure_summary = df_encoded.groupby("Exposure_EscapeOfWater").agg(
-        Actual=('CalculatedResult_NetPremiumDiffFromPredictedMarketPremiumAmt_bnd', 'mean')
+    df['Expected'] = all_predictions
+    exposure_summary = df.groupby("Exposure_EscapeOfWater").agg(
+        Actual=('CalculatedResult_NetPremiumDiffFromPredictedMarketPremiumAmt_bnd', 'mean'),
+        Expected=('Expected', 'mean')
     ).reset_index()
-
-    # Add expected predictions to the summary
-    exposure_summary['Expected'] = all_predictions.mean()  # Using mean for expected
 
     # Plotly chart
     fig = go.Figure()
@@ -103,11 +108,12 @@ with tabs[1]:
         template='plotly_white'
     )
 
+    # Adjust the y-axis for better variation
     fig.update_yaxes(range=[0, max(exposure_summary["Actual"].max(), exposure_summary["Expected"].max()) * 1.5])
     st.plotly_chart(fig, use_container_width=True)
 
     # Calculate Mean Squared Error
-    X_train, X_test, y_train, y_test = train_test_split(features, df_encoded["CalculatedResult_NetPremiumDiffFromPredictedMarketPremiumAmt_bnd"], test_size=0.2, random_state=42)
+    X_train, X_test, y_train, y_test = train_test_split(features, df['CalculatedResult_NetPremiumDiffFromPredictedMarketPremiumAmt_bnd'], test_size=0.2, random_state=42)
     y_pred = model.predict(X_test)
     mse = mean_squared_error(y_test, y_pred)
     st.write(f'Mean Squared Error: {mse:.2f}')
