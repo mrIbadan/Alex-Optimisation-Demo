@@ -8,10 +8,14 @@ from sklearn.metrics import mean_squared_error
 import plotly.graph_objects as go
 import shap
 
-# Load the model
+# Load the model from the URL
 @st.cache_resource
 def load_model():
-    with open('rate_change_test.pkl', 'rb') as f:
+    url = "https://github.com/mrIbadan/Alex-Optimisation-Demo/raw/main/home_insurance_model.pkl"
+    response = requests.get(url)
+    with open("home_insurance_model.pkl", "wb") as f:
+        f.write(response.content)
+    with open("home_insurance_model.pkl", "rb") as f:
         model = pickle.load(f)
     return model
 
