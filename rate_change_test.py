@@ -6,7 +6,7 @@ with tabs[1]:
 
     # Preprocess the data
     df_encoded = pd.get_dummies(df, columns=["Occupation_v4", "Region_bnd"], drop_first=True)
-    
+
     # Ensure the DataFrame has the correct columns
     features = df_encoded.drop(columns=["CalculatedResult_NetPremiumDiffFromPredictedMarketPremiumAmt_bnd"])
 
@@ -21,6 +21,8 @@ with tabs[1]:
 
     # Prepare data for the chart
     df['Expected'] = all_predictions
+
+    # Group by Exposure and calculate means for Actual and Expected
     exposure_summary = df.groupby("Exposure_EscapeOfWater").agg(
         Actual=('CalculatedResult_NetPremiumDiffFromPredictedMarketPremiumAmt_bnd', 'mean'),
         Expected=('Expected', 'mean'),
@@ -54,13 +56,14 @@ with tabs[1]:
     fig.update_layout(
         title='Actual vs Expected by Exposure',
         xaxis_title='Exposure',
-        yaxis_title='Actual Values',
+        yaxis=dict(title='Actual Values'),
         yaxis2=dict(
             title='Expected Values',
             overlaying='y',
             side='right'
         ),
-        width=1500, height=800,
+        width=1500,
+        height=800,
         template='plotly_white'
     )
 
